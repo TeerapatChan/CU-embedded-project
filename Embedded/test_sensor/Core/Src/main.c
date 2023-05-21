@@ -67,8 +67,55 @@ static void MX_ADC1_Init(void);
 /* USER CODE BEGIN 0 */
 DHT_DataTypedef DHT11_Data;
 uint16_t Temperature, Humidity;
-/* USER CODE END 0 */
+BH1750_device_t* LightSensor;
 
+void Read_Temperature(){
+	DHT_GetData(&DHT11_Data);
+
+    Temperature = DHT11_Data.Temperature;
+    Humidity = DHT11_Data.Humidity;
+    char Temp[30];
+    sprintf(Temp, "Temperature = %u C\r\n", Temperature);
+    HAL_UART_Transmit(&huart2, (uint8_t*)Temp, strlen(Temp), HAL_MAX_DELAY);
+
+    char Humid[30];
+    sprintf(Humid, "Humidity = %u %% \r\n", Humidity);
+    HAL_UART_Transmit(&huart2, (uint8_t*)Humid, strlen(Humid), HAL_MAX_DELAY);
+}
+
+void Read_Light(){
+	LightSensor->poll(LightSensor);
+	uint16_t lux = LightSensor->value;
+	float light = ((float)lux/10000)*100;
+	char Light[50];
+	if (light > 100){
+		light = 100;
+	}
+	sprintf(Light, "Light Value: %.2f %%\r\n", light);
+	HAL_UART_Transmit(&huart2, (uint8_t*)Light, strlen(Light), HAL_MAX_DELAY);
+}
+
+
+void Read_Moisture(){
+	float moisture;
+	HAL_ADC_Start(&hadc1);
+	HAL_ADC_PollForConversion(&hadc1,1000);
+	moisture = HAL_ADC_GetValue(&hadc1);
+	moisture = ((moisture - 3200) / (1300 - 3200)) * 100;
+	if (moisture > 100){
+		moisture = 100;
+	}else if (moisture < 0){ moisture = 0;}
+	char Moisture[30];
+	sprintf(Moisture, "Moisture = %.2f %%\r\n\n", moisture);
+	HAL_UART_Transmit(&huart2, (uint8_t*)Moisture, strlen(Moisture), HAL_MAX_DELAY);
+}
+
+void Read_Sensor(){
+	Read_Temperature();
+	Read_Light();
+	Read_Moisture();
+}
+/* USER CODE END 0 */
 /**
   * @brief  The application entry point.
   * @retval int
@@ -107,7 +154,7 @@ int main(void)
 
   /*-------Light-----------------------------------------------------------------------------------*/
   BH1750_init_i2c(&hi2c1);
-  BH1750_device_t* LightSensor = BH1750_init_dev_struct(&hi2c1, "LightSensor", true);
+  LightSensor = BH1750_init_dev_struct(&hi2c1, "LightSensor", true);
   BH1750_init_dev(LightSensor);
   /* USER CODE END 2 */
 
@@ -117,39 +164,7 @@ int main(void)
   {
 	  /*------Temperature & Humidity-------------------------------------------------------------------*/
 	  HAL_GPIO_TogglePin(GPIOA, LD2_Pin);
-	  DHT_GetData(&DHT11_Data);
-
-	  Temperature = DHT11_Data.Temperature;
-	  Humidity = DHT11_Data.Humidity;
-	  char Temp[30];
-	  sprintf(Temp, "Temperature = %u C\r\n", Temperature);
-	  HAL_UART_Transmit(&huart2, (uint8_t*)Temp, strlen(Temp), HAL_MAX_DELAY);
-
-	  char Humid[30];
-	  sprintf(Humid, "Humidity = %u %% \r\n", Humidity);
-	  HAL_UART_Transmit(&huart2, (uint8_t*)Humid, strlen(Humid), HAL_MAX_DELAY);
-
-	  /*-------End of DHT11 ------------------------------------------------------------------------------------*/
-
-	  /*-------Light-----------------------------------------------------------------------------------*/
-	  LightSensor->poll(LightSensor);
-	  uint16_t lux = LightSensor->value;
-	  char Light[50];
-	  sprintf(Light, "Light Value: %u lx\r\n", lux);
-	  HAL_UART_Transmit(&huart2, (uint8_t*)Light, strlen(Light), HAL_MAX_DELAY);
-	  /*-------End of Light--------------------------------------------------------------------------*/
-
-	  /*----------Soil moisture-----------------------------------------------------------------------*/
-	  float moisture;
-	  HAL_ADC_Start(&hadc1);
-	  HAL_ADC_PollForConversion(&hadc1,1000);
-	  moisture = HAL_ADC_GetValue(&hadc1);
-	  moisture = ((moisture - 3200) / (1300 - 3200)) * 100;
-	  char Moisture[30];
-	  sprintf(Moisture, "Moisture = %.2f %%\r\n\n", moisture);
-	  HAL_UART_Transmit(&huart2, (uint8_t*)Moisture, strlen(Moisture), HAL_MAX_DELAY);
-	  //Percentage = ((moisture - 3000) / (1500 - 3000)) * 100
-	  /*-----------End Moitsure-------------------------------------------------------------------------------*/
+	  Read_Sensor();
 	  HAL_Delay(1000);
     /* USER CODE END WHILE */
 
