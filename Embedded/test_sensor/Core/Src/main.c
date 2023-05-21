@@ -46,6 +46,7 @@ I2C_HandleTypeDef hi2c1;
 
 TIM_HandleTypeDef htim1;
 
+UART_HandleTypeDef huart1;
 UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
@@ -59,6 +60,7 @@ static void MX_USART2_UART_Init(void);
 static void MX_TIM1_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_ADC1_Init(void);
+static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -68,33 +70,34 @@ static void MX_ADC1_Init(void);
 DHT_DataTypedef DHT11_Data;
 uint16_t Temperature, Humidity;
 BH1750_device_t* LightSensor;
-
+char send_temp[30];
 void Read_Temperature(){
 	DHT_GetData(&DHT11_Data);
 
     Temperature = DHT11_Data.Temperature;
     Humidity = DHT11_Data.Humidity;
-    char Temp[30];
-    sprintf(Temp, "Temperature = %u C\r\n", Temperature);
-    HAL_UART_Transmit(&huart2, (uint8_t*)Temp, strlen(Temp), HAL_MAX_DELAY);
+    sprintf(send_temp, "Temperature = %u C\r\n", Temperature);
+    HAL_UART_Transmit(&huart2, (uint8_t*)send_temp, strlen(send_temp), HAL_MAX_DELAY);
 
     char Humid[30];
     sprintf(Humid, "Humidity = %u %% \r\n", Humidity);
     HAL_UART_Transmit(&huart2, (uint8_t*)Humid, strlen(Humid), HAL_MAX_DELAY);
 }
 
+char send_Light[50];
+
 void Read_Light(){
 	LightSensor->poll(LightSensor);
 	uint16_t lux = LightSensor->value;
 	float light = ((float)lux/10000)*100;
-	char Light[50];
 	if (light > 100){
 		light = 100;
 	}
-	sprintf(Light, "Light Value: %.2f %%\r\n", light);
-	HAL_UART_Transmit(&huart2, (uint8_t*)Light, strlen(Light), HAL_MAX_DELAY);
+	sprintf(send_Light, "Light Value: %.2f %%\r\n", light);
+	HAL_UART_Transmit(&huart2, (uint8_t*)send_Light, strlen(send_Light), HAL_MAX_DELAY);
 }
 
+char send_Moisture[30];
 
 void Read_Moisture(){
 	float moisture;
@@ -105,9 +108,8 @@ void Read_Moisture(){
 	if (moisture > 100){
 		moisture = 100;
 	}else if (moisture < 0){ moisture = 0;}
-	char Moisture[30];
-	sprintf(Moisture, "Moisture = %.2f %%\r\n\n", moisture);
-	HAL_UART_Transmit(&huart2, (uint8_t*)Moisture, strlen(Moisture), HAL_MAX_DELAY);
+	sprintf(send_Moisture, "Moisture = %.2f %%\r\n\n", moisture);
+	HAL_UART_Transmit(&huart2, (uint8_t*)send_Moisture, strlen(send_Moisture), HAL_MAX_DELAY);
 }
 
 void Read_Sensor(){
@@ -115,7 +117,20 @@ void Read_Sensor(){
 	Read_Light();
 	Read_Moisture();
 }
+
+//int temperature, moiture, light;
+uint8_t text;
+void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
+    if (huart->Instance == USART1) {
+          HAL_UART_Transmit(&huart1, &send_temp, sizeof(send_temp), 1000);
+          HAL_UART_Transmit(&huart1, &send_Moisture, sizeof(send_Moisture), 1000);
+          HAL_UART_Transmit(&huart1, &send_Light, sizeof(send_Light), 1000);
+          HAL_UART_Receive_IT(&huart1, &text, 1);
+    }
+}
+
 /* USER CODE END 0 */
+
 /**
   * @brief  The application entry point.
   * @retval int
@@ -148,9 +163,11 @@ int main(void)
   MX_TIM1_Init();
   MX_I2C1_Init();
   MX_ADC1_Init();
+  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
 
   HAL_TIM_Base_Start(&htim1);
+  UART_Start_Receive_IT(&huart1, &text, 1);
 
   /*-------Light-----------------------------------------------------------------------------------*/
   BH1750_init_i2c(&hi2c1);
@@ -347,6 +364,39 @@ static void MX_TIM1_Init(void)
   /* USER CODE BEGIN TIM1_Init 2 */
 
   /* USER CODE END TIM1_Init 2 */
+
+}
+
+/**
+  * @brief USART1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART1_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART1_Init 0 */
+
+  /* USER CODE END USART1_Init 0 */
+
+  /* USER CODE BEGIN USART1_Init 1 */
+
+  /* USER CODE END USART1_Init 1 */
+  huart1.Instance = USART1;
+  huart1.Init.BaudRate = 115200;
+  huart1.Init.WordLength = UART_WORDLENGTH_8B;
+  huart1.Init.StopBits = UART_STOPBITS_1;
+  huart1.Init.Parity = UART_PARITY_NONE;
+  huart1.Init.Mode = UART_MODE_TX_RX;
+  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART1_Init 2 */
+
+  /* USER CODE END USART1_Init 2 */
 
 }
 
