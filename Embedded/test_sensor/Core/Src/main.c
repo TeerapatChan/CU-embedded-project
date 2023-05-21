@@ -70,6 +70,9 @@ static void MX_USART1_UART_Init(void);
 DHT_DataTypedef DHT11_Data;
 uint16_t Temperature, Humidity;
 BH1750_device_t* LightSensor;
+
+int t,m,l;
+
 char send_temp[30];
 void Read_Temperature(){
 	DHT_GetData(&DHT11_Data);
@@ -82,6 +85,8 @@ void Read_Temperature(){
     char Humid[30];
     sprintf(Humid, "Humidity = %u %% \r\n", Humidity);
     HAL_UART_Transmit(&huart2, (uint8_t*)Humid, strlen(Humid), HAL_MAX_DELAY);
+
+    t= Temperature;
 }
 
 char send_Light[50];
@@ -95,6 +100,8 @@ void Read_Light(){
 	}
 	sprintf(send_Light, "Light Value: %.2f %%\r\n", light);
 	HAL_UART_Transmit(&huart2, (uint8_t*)send_Light, strlen(send_Light), HAL_MAX_DELAY);
+
+	l=light;
 }
 
 char send_Moisture[30];
@@ -110,6 +117,8 @@ void Read_Moisture(){
 	}else if (moisture < 0){ moisture = 0;}
 	sprintf(send_Moisture, "Moisture = %.2f %%\r\n\n", moisture);
 	HAL_UART_Transmit(&huart2, (uint8_t*)send_Moisture, strlen(send_Moisture), HAL_MAX_DELAY);
+
+	m=moisture;
 }
 
 void Read_Sensor(){
@@ -122,9 +131,10 @@ void Read_Sensor(){
 uint8_t text;
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
     if (huart->Instance == USART1) {
-          HAL_UART_Transmit(&huart1, &send_temp, sizeof(send_temp), 1000);
-          HAL_UART_Transmit(&huart1, &send_Moisture, sizeof(send_Moisture), 1000);
-          HAL_UART_Transmit(&huart1, &send_Light, sizeof(send_Light), 1000);
+    	HAL_UART_Transmit(&huart2, "start\n\r", sizeof("start\n\r"), 1000);
+          HAL_UART_Transmit(&huart1, &t, sizeof(t), 1000);
+          HAL_UART_Transmit(&huart1, &m, sizeof(m), 1000);
+          HAL_UART_Transmit(&huart1, &l, sizeof(l), 1000);
           HAL_UART_Receive_IT(&huart1, &text, 1);
     }
 }
@@ -383,7 +393,7 @@ static void MX_USART1_UART_Init(void)
 
   /* USER CODE END USART1_Init 1 */
   huart1.Instance = USART1;
-  huart1.Init.BaudRate = 115200;
+  huart1.Init.BaudRate = 9600;
   huart1.Init.WordLength = UART_WORDLENGTH_8B;
   huart1.Init.StopBits = UART_STOPBITS_1;
   huart1.Init.Parity = UART_PARITY_NONE;
